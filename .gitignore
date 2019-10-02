@@ -1,3 +1,9 @@
+# Latex
+*.aux
+*.out
+*.gz
+*.tex
+*.cls
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

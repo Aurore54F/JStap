@@ -31,6 +31,12 @@ from var_list import *
 GIT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
+def pickle_dump_process(dfg_nodes, store_pdg):
+    """ Call to pickle.dump """
+
+    pickle.dump(dfg_nodes, open(store_pdg, 'wb'))
+
+
 def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
     """
         Produces the PDG of a given file.
@@ -72,8 +78,13 @@ def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
         start = micro_benchmark('Successfully produced the CFG in', timeit.default_timer() - start)
         # draw_cfg(cfg_nodes, attributes=True, save_path=save_path_cfg)
         unknown_var = []
-        dfg_nodes = df_scoping(cfg_nodes, var_loc=VarList(), var_glob=VarList(),
-                               unknown_var=unknown_var, id_list=[], entry=1)[0]
+        try:
+            with Timeout(60):  # Tries to produce DF within 60s
+                dfg_nodes = df_scoping(cfg_nodes, var_loc=VarList(), var_glob=VarList(),
+                                       unknown_var=unknown_var, id_list=[], entry=1)[0]
+        except Timeout.Timeout:
+            logging.exception('Timed out for %s', input_file)
+            return None
         # draw_pdg(dfg_nodes, attributes=True, save_path=save_path_pdg)
         for unknown in unknown_var:
             logging.warning('The variable ' + unknown.attributes['name'] + ' is not declared')
@@ -83,7 +94,16 @@ def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
         micro_benchmark('Successfully produced the PDG in', timeit.default_timer() - start)
         if store_pdgs is not None:
             store_pdg = os.path.join(store_pdgs, os.path.basename(input_file.replace('.js', '')))
-            pickle.dump(dfg_nodes, open(store_pdg, 'wb'))
+            # pickle.dump(dfg_nodes, open(store_pdg, 'wb'))
+            # I don't know why, but some PDGs lead to Segfault, this way it does not kill the
+            # current process at least
+            p = Process(target=pickle_dump_process, args=(dfg_nodes, store_pdg))
+            p.start()
+            p.join()
+            if p.exitcode != 0:
+                logging.error('Something wrong occurred to pickle the PDG of %s', store_pdg)
+                if os.path.isfile(store_pdg) and os.stat(store_pdg).st_size == 0:
+                    os.remove(store_pdg)
         return dfg_nodes
     return None
 
