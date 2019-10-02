@@ -1,6 +1,6 @@
 # JStap: A Static Pre-Filter for Malicious JavaScript Detection
 
-This repository contains the code for the ACSAC'19 paper: "JStap: A Static Pre-Filter for Malicious JavaScript Detection".  
+This repository contains the code for the [ACSAC'19 paper: "JStap: A Static Pre-Filter for Malicious JavaScript Detection"](https://swag.cispa.saarland/papers/fass2019jstap.pdf).  
 Please note that in its current state, the code is a Poc and not a fully-fledged production-ready API.
 
 
@@ -110,7 +110,7 @@ Currently, we are using 2 CPUs for the learning and classification processes; th
 
 
 ## Cite this work
-If you use JStap for academic research, you are highly encouraged to cite the following paper:
+If you use JStap for academic research, you are highly encouraged to cite the following [paper](https://swag.cispa.saarland/papers/fass2019jstap.pdf):
 ```
 @inproceedings{fass2019jstap,
     author="Fass, Aurore and Backes, Michael and Stock, Ben",
