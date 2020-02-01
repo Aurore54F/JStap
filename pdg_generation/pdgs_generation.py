@@ -61,7 +61,10 @@ def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
     """
 
     start = timeit.default_timer()
-    esprima_json = input_file.replace('.js', '.json')
+    if input_file.endswith('.js'):
+        esprima_json = input_file.replace('.js', '.json')
+    else:
+        esprima_json = input_file + '.json'
     extended_ast = get_extended_ast(input_file, esprima_json)
     if extended_ast is not None:
         benchmarks['got AST'] = timeit.default_timer() - start
@@ -112,10 +115,9 @@ def handle_one_pdg(root, js, store_pdgs):
     """ Stores the PDG of js located in root, in store_pdgs. """
 
     benchmarks = dict()
-    if js.endswith('.js'):
-        print(os.path.join(store_pdgs, js.replace('.js', '')))
-        get_data_flow(input_file=os.path.join(root, js), benchmarks=benchmarks,
-                      store_pdgs=store_pdgs)
+    print(os.path.join(store_pdgs, js.replace('.js', '')))
+    get_data_flow(input_file=os.path.join(root, js), benchmarks=benchmarks,
+                  store_pdgs=store_pdgs)
 
 
 def worker(my_queue):
