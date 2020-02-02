@@ -16,13 +16,18 @@
     Main module to build a model to classify future JavaScript files.
 """
 
+import os
+import pickle
+import logging
 import argparse
 
+import features_preselection
+import features_selection
+import static_analysis
 import machine_learning
-from features_preselection import *
-from features_selection import *
+import utility
 
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+SRC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
 def classify(names, labels, attributes, model_dir, model_name, estimators,
@@ -80,7 +85,7 @@ def classify(names, labels, attributes, model_dir, model_name, estimators,
 
     model_path = os.path.join(model_dir, model_name)
     pickle.dump(trained, open(model_path, 'wb'))
-    logging.info('The model has been successfully stored in ' + model_path)
+    logging.info('The model has been successfully stored in %s', model_path)
 
     return trained
 
@@ -89,28 +94,11 @@ def parsing_commands():
     """
         Creation of an ArgumentParser object, holding all the information necessary to parse
         the command line into Python data types.
-
-        -------
-        Returns:
-        - ArgumentParser such as:
-          * js_dirs=arg_obj['d'],
-          * labels_d=arg_obj['l'],
-          * js_files=arg_obj['f'],
-          * labels_f=arg_obj['lf'],
-          * model_dir=arg_obj['md'][0],
-          * model_name=arg_obj['mn'][0],
-          * print_score=arg_obj['ps'][0],
-          * print_res=arg_obj['pr'][0],
-          * estimators=arg_obj['nt'][0],
-          * level=arg_obj['level']
-          * n=arg_obj['n'][0].
-          A more thorough description can be obtained:
-            >$ python3 <path-of-clustering/learner.py> -help
     """
 
     parser = argparse.ArgumentParser(description='Given a list of directory or file paths, '
-                                                 + 'builds a model to classify future '
-                                                 + 'JS inputs.')
+                                                 'builds a model to classify future '
+                                                 'JS inputs.')
 
     parser.add_argument('--d', metavar='DIR', type=str, nargs='+',
                         help='directories to be used to build a model from')
@@ -123,7 +111,7 @@ def parsing_commands():
                         choices=['benign', 'malicious'],
                         help='labels of the 2 JS dir for the features selection process')
     parser.add_argument('--md', metavar='MODEL-DIR', type=str, nargs=1,
-                        default=[os.path.join(src_path, 'Analysis')],
+                        default=[os.path.join(SRC_PATH, 'Analysis')],
                         help='path to store the model that will be produced')
     parser.add_argument('--mn', metavar='MODEL-NAME', type=str, nargs=1,
                         default=['model'],
@@ -179,25 +167,45 @@ def main_learn(js_dirs=arg_obj['d'], js_dirs_validate=arg_obj['vd'], labels_vali
         - estimators: int
             Number of trees in the forest.
         - level: str
-            Either 'tokens', 'ast', 'cfg', or 'pdg' depending on the units you want to extract.
+            Either 'tokens', 'ast', 'cfg', 'pdg', or 'pdg-dfg' depending on the units you want
+            to extract.
         - features_choice: str
-            Either 'ngrams', 'value', 'combined' or 'context' depending on the features you want.
+            Either 'ngrams' or 'value' depending on the features you want.
         - analysis_path: str
             Folder to store the features' analysis results in.
         Default values are the ones given in the command lines or in the
         ArgumentParser object (function parsingCommands()).
     """
 
-    if utility.check_params(js_dirs, None, level, features_choice) == 0:
-        return
+    if js_dirs is None:
+        logging.error('Please, indicate at least 2 directories (--d option), at least one benign '
+                      'and one malicious (--l option to pass the corresponding labels).\nGot 0 '
+                      'directories with the following labels: %s', labels_d)
+
+    elif len(js_dirs) < 2 or labels_d is None\
+            or 'benign' not in labels_d or 'malicious' not in labels_d:
+        logging.error('Please, indicate at least 2 directories (--d option), at least one benign '
+                      'and one malicious (--l option to pass the corresponding labels).\nGot %s '
+                      'directories with the following labels: %s', str(len(js_dirs)), labels_d)
 
     elif js_dirs is not None and (labels_d is None or len(js_dirs) != len(labels_d)):
-        logging.error('Please, indicate as many directory labels as the number %s of directories'
-                      ' to analyze', str(len(js_dirs)))
+        logging.error('Please, indicate as many directory labels (--l option) as the number %s of '
+                      'directories to analyze', str(len(js_dirs)))
 
-    elif js_dirs_validate is None or labels_validate is None:
-        logging.error('Please, indicate the 2 JS directories with corresponding labels '
-                      + '(1 benign and 1 malicious) to select the features with chi2')
+    elif js_dirs_validate is None:
+        logging.error('Please, indicate the 2 JS directories (--vd option) '
+                      'with corresponding labels (--vl option, 1 benign and 1 malicious) '
+                      'for the features validation process')
+
+    elif len(js_dirs_validate) != 2 or labels_validate is None\
+            or 'benign' not in labels_validate or 'malicious' not in labels_validate:
+        logging.error('Please, indicate the 2 JS directories (--vd option) '
+                      'with corresponding labels (--vl option, 1 benign and 1 malicious) '
+                      'for the features validation process.\nGot %s directories with following '
+                      'labels %s', str(len(js_dirs_validate)), labels_validate)
+
+    elif utility.check_params(level, features_choice) == 0:
+        return
 
     else:
         analysis_path = os.path.join(analysis_path, 'Features')
@@ -206,9 +214,10 @@ def main_learn(js_dirs=arg_obj['d'], js_dirs_validate=arg_obj['vd'], labels_vali
         features2int_dict_path = os.path.join(analysis_path, features_choice[0],
                                               level[0] + '_selected_features_99')
 
-        handle_features_all(js_dirs, labels_d, level[0], features_choice[0], analysis_path, n)
-        store_features_all(js_dirs_validate, labels_validate, level[0], features_choice[0],
-                           analysis_path, n)
+        features_preselection.handle_features_all(js_dirs, labels_d, level[0], features_choice[0],
+                                                  analysis_path, n)
+        features_selection.store_features_all(js_dirs_validate, labels_validate, level[0],
+                                              features_choice[0], analysis_path, n)
 
         names, attributes, labels = static_analysis.main_analysis\
             (js_dirs=js_dirs, labels_dirs=labels_d, js_files=None, labels_files=None,
@@ -227,10 +236,7 @@ def main_learn(js_dirs=arg_obj['d'], js_dirs_validate=arg_obj['vd'], labels_vali
                      print_score=print_score[0], print_res=print_res[0], estimators=estimators[0])
 
         else:
-            logging.warning('No file found for the analysis.\n'
-                            + '(see >$ python3 <path-of-js/is_js.py> -help)'
-                            + ' to check your files correctness.\n'
-                            + 'Otherwise they may not contain enough n-grams)')
+            logging.warning('No valid JS file found for the analysis')
 
 
 if __name__ == "__main__":  # Executed only if run as a script

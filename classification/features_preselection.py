@@ -22,7 +22,6 @@ import logging
 import timeit
 from multiprocessing import Process, Queue
 import queue  # For the exception queue.Empty which is not in the multiprocessing package
-import psutil
 
 import features_space
 import static_analysis
@@ -50,8 +49,7 @@ def handle_features_1dir(samples_dir, label, level, features_choice, n, analysis
     if not os.path.exists(analysis_path):
         os.makedirs(analysis_path)
 
-    pickle_path = os.path.join(analysis_path, features_choice, level
-                               + '_all_features_' + label)
+    pickle_path = os.path.join(analysis_path, features_choice, level + '_all_features_' + label)
     utility.check_folder_exists(pickle_path)
 
     if os.path.isfile(pickle_path):
@@ -60,8 +58,6 @@ def handle_features_1dir(samples_dir, label, level, features_choice, n, analysis
         all_features_dict = dict()
 
     analyses = get_features_all_files_multiproc(samples_dir, level, features_choice, n)
-
-    start = timeit.default_timer()
 
     for analysis in analyses:
         features_dict = analysis.features
@@ -72,23 +68,19 @@ def handle_features_1dir(samples_dir, label, level, features_choice, n, analysis
                 logging.exception('Something went wrong with %s', analysis.file_path)
 
     pickle.dump(all_features_dict, open(pickle_path, 'wb'))
-    utility.micro_benchmark('Total elapsed time:', timeit.default_timer() - start)
 
 
 def handle_features_all(js_dirs, labels, level, features_choice, analysis_path, n=4):
     """ handle_features_1dir for a list of directories; TO CALL. """
 
-    if level == 'ast' or level == 'cfg' or level == 'pdg-dfg' or level == 'pdg'\
-            or level == 'tokens':
-
+    if level in ('ast', 'cfg', 'pdg-dfg', 'pdg', 'tokens'):
         for i, _ in enumerate(js_dirs):
-            print('Currently handling ' + js_dirs[i])
-
+            logging.debug('Currently handling %s', js_dirs[i])
             handle_features_1dir(js_dirs[i], labels[i], level, features_choice, n, analysis_path)
 
     else:
-        logging.error('Expected \'tokens\' or \'ast\' or \'cfg\' or \'pdg-dfg\' or \'pdg\''
-                      + ', got %s instead', level)
+        logging.error('Expected \'tokens\' or \'ast\' or \'cfg\' or \'pdg-dfg\' or \'pdg\', '
+                      'got %s instead', level)
 
 
 def worker_get_features(my_queue, out_queue, except_queue):
@@ -115,9 +107,6 @@ def get_features_all_files_multiproc(samples_dir, level, features_choice, n):
         Gets the features of all files from samples_dir.
     """
 
-    start = timeit.default_timer()
-    ram = psutil.virtual_memory().used
-
     my_queue = Queue()
     out_queue = Queue()
     except_queue = Queue()
@@ -129,8 +118,7 @@ def get_features_all_files_multiproc(samples_dir, level, features_choice, n):
         my_queue.put([analysis, level, features_choice, n])
 
     for _ in range(utility.NUM_WORKERS):
-        p = Process(target=worker_get_features,
-                    args=(my_queue, out_queue, except_queue))
+        p = Process(target=worker_get_features, args=(my_queue, out_queue, except_queue))
         p.start()
         workers.append(p)
 
@@ -151,10 +139,6 @@ def get_features_all_files_multiproc(samples_dir, level, features_choice, n):
                 break
         if all_exited & out_queue.empty():
             break
-
-    utility.get_ram_usage(psutil.virtual_memory().used - ram)
-    utility.micro_benchmark('Total elapsed time for features production:',
-                            timeit.default_timer() - start)
 
     return analyses
 

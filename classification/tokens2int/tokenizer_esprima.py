@@ -15,14 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-    Configuration file storing the dictionary tokens_dico.
+    Configuration file storing the dictionary TOKENS_DICO.
         Key: Esprima lexical unit (token);
         Value: Unique integer.
     Complete list: <https://github.com/jquery/esprima/blob/master/features/token.ts>.
 """
 
 
-tokens_dico = {
+TOKENS_DICO = {
     'Boolean': 0,
     '<end>': 1,
     'Identifier': 2,

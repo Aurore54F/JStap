@@ -39,7 +39,6 @@ class UpperThresholdFilter(logging.Filter):
         return rec.levelno <= self._threshold
 
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.ERROR)
 LOGGER = logging.getLogger()
 LOGGER.addFilter(UpperThresholdFilter(logging.CRITICAL))
 
@@ -48,11 +47,6 @@ def micro_benchmark(message, elapsed_time):
     """ Micro benchmarks. """
     logging.info('%s %s%s', message, str(elapsed_time), 's')
     return timeit.default_timer()
-
-
-def get_ram_usage(ram):
-    """ RAM usage. """
-    logging.info('%s %s%s', 'Current RAM usage:', str(ram / 1024 / 1024 / 1024), 'GB')
 
 
 def check_folder_exists(folder_path):
@@ -65,6 +59,8 @@ def check_folder_exists(folder_path):
 
 
 def get_files2handle(list_files_path, label):
+    """ Gets the files to handle, along with their label. """
+
     with open(list_files_path) as f:
         files2do = f.readlines()
     files2do = [file_path.replace('\n', '') for file_path in files2do]
@@ -91,10 +87,10 @@ def parsing_commands(parser):
                         help='folder to store the features\' analysis results in')
     parser.add_argument('--n', metavar='INTEGER', type=int, nargs=1, default=[4],
                         help='stands for the size of the sliding-window which goes through the '
-                             + 'units contained in the files to be analyzed')
+                             'units contained in the files to be analyzed')
     parser.add_argument('--v', metavar='VERBOSITY', type=int, nargs=1, choices=[0, 1, 2, 3, 4, 5],
                         default=[2], help='controls the verbosity of the output, from 0 (verbose) '
-                                          + 'to 5 (less verbose)')
+                                          'to 5 (less verbose)')
     parser.add_argument('--level', metavar='LEVEL', type=str, nargs=1,
                         choices=['tokens', 'ast', 'cfg', 'pdg-dfg', 'pdg'],
                         help='stands for the level of the analysis (tokens, ast, cfg, pdg-dfg, pdg')
@@ -119,17 +115,16 @@ def control_logger(logging_level):
                         level=logging.getLevelName(logging_level * 10))
 
 
-def check_params(js_dirs, js_files, level, features_choice):
+def check_params(level, features_choice):
+    """ Generic parameters checks before running. """
 
-    if js_dirs is None and js_files is None:
-        logging.error('Please, indicate a directory or a JS file to be analyzed/build a model from')
-
-    elif level is None:
-        logging.error('Please, indicate the level of the analysis (either tokens, ast, cfg, '
-                      + 'pdg-dfg or pdg')
+    if level is None:
+        logging.error('Please, indicate the level of the analysis (--level option, '
+                      'either tokens, ast, cfg, pdg-dfg or pdg)')
 
     elif features_choice is None:
-        logging.error('Please, indicate your features\' choice (either ngrams, value)')
+        logging.error('Please, indicate your features\' choice (--features option, '
+                      'either ngrams, value)')
 
     else:
         return 1

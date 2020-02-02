@@ -5,6 +5,11 @@
 *.tex
 *.cls
 
+# Analysis files
+Analysis
+samples
+scripts
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -15,6 +20,7 @@ __pycache__/
 
 # Additional tools
 node_modules
+*/package-lock.json
 
 # C extensions
 *.so

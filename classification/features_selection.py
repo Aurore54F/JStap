@@ -20,7 +20,6 @@ import os
 import pickle
 import logging
 import timeit
-import psutil
 from multiprocessing import Process, Queue
 import queue  # For the exception queue.Empty which is not in the multiprocessing package
 from scipy.stats import chi2_contingency, chi2
@@ -105,16 +104,16 @@ def analyze_features_all(all_features_dict1, all_features_dict2, samples_dir_lis
     with a distinction between benign and malicious files. """
 
     if len(samples_dir_list) != len(labels_list):
-        logging.error("Something is wrong with the size of samples_dir_list and label_list. "
-                      + "Got %s and %s", str(len(samples_dir_list)), str(len(labels_list)))
+        logging.error("The number %s of directories (--vd option) does not match the number %s "
+                      "of labels (--vl option)", str(len(samples_dir_list)), str(len(labels_list)))
         return None
 
     if "benign" not in labels_list and "malicious" not in labels_list:
-        logging.error("Expected 'benign' and 'malicious' in labels_list")
+        logging.error("Expected both the labels 'benign' and 'malicious' (--vl option).\nGot %s",
+                      labels_list)
         return None
 
-    pickle_path = os.path.join(analysis_path,
-                               features_choice,
+    pickle_path = os.path.join(analysis_path, features_choice,
                                level + '_analyzed_features_' + path_info)
     utility.check_folder_exists(pickle_path)
 
@@ -124,8 +123,6 @@ def analyze_features_all(all_features_dict1, all_features_dict2, samples_dir_lis
     analyses = get_features_all_files_multiproc(samples_dir_list, labels_list, level,
                                                 features_choice, n)
 
-    start = timeit.default_timer()
-
     for analysis in analyses:
         features_dict = analysis.features
         label = analysis.label
@@ -134,7 +131,6 @@ def analyze_features_all(all_features_dict1, all_features_dict2, samples_dir_lis
 
     pickle.dump(analyzed_features_dict, open(pickle_path, 'wb'))
 
-    utility.micro_benchmark('Total elapsed time:', timeit.default_timer() - start)
     return analyzed_features_dict
 
 
@@ -155,15 +151,14 @@ def select_features(analyzed_features_dict, confidence):
         ben_with_f, ben_wo_f, mal_with_f, mal_wo_f = analyzed_features_dict[feature]
 
         try:
-            chi_square, p, dof, expected = chi2_contingency([[ben_with_f, ben_wo_f],
-                                                             [mal_with_f, mal_wo_f]])
+            chi_square, _, _, _ = chi2_contingency([[ben_with_f, ben_wo_f], [mal_with_f, mal_wo_f]])
 
         except ValueError:
             chi_square = 0
 
         if chi_square >= chi_critical:  # 'confidence'% confidence
-            logging.info('Feature presence and classification are not independent, chi2 = %s',
-                         str(chi_square))
+            logging.debug('Feature presence and classification are not independent, chi2 = %s',
+                          str(chi_square))
             selected_features_dict[feature] = pos
             pos += 1
 
@@ -176,9 +171,8 @@ def store_features(all_features_dict_path1, all_features_dict_path2, samples_dir
     """ Stores the features selected by chi2 in a dict.
         The confidence has to be given in percent. """
 
-    pickle_path = os.path.join(analysis_path,
-                               features_choice, level + '_selected_features_'
-                               + str(chi_confidence))
+    pickle_path = os.path.join(analysis_path, features_choice,
+                               level + '_selected_features_' + str(chi_confidence))
     utility.check_folder_exists(pickle_path)
 
     if analyzed_features_path is None:
@@ -203,21 +197,20 @@ def store_features_all(js_dirs_validate, labels_validate, level, features_choice
                        analysis_path, n=4, analyzed_features_path=None, chi_confidence=99):
     """ store_features for the 2 validation directories; TO CALL """
 
-    features_path = os.path.join(analysis_path,
-                                 features_choice, level + '_all_features_')
+    features_path = os.path.join(analysis_path, features_choice, level + '_all_features_')
 
     all_features_dict_path_bad = features_path + 'malicious'
     all_features_dict_path_good = features_path + 'benign'
 
     if len(js_dirs_validate) != 2:
-        logging.error('Please give 2 folders for the features validation process, one '
-                      + 'benign and one malicious, got %s folders', str(len(js_dirs_validate)))
+        logging.error('Please, indicate 2 folders for the features validation process (--vd option)'
+                      ', 1 benign and 1 malicious, got %s folders', str(len(js_dirs_validate)))
     elif 'benign' not in labels_validate or 'malicious' not in labels_validate:
-        logging.error('Please indicate the 2 labels for the features validation process, one '
-                      + 'has to be \'benign\' and the other \'malicious\', the order should '
-                      + 'correspond to the folder order, got %s', labels_validate)
+        logging.error('Please, indicate the 2 labels for the features validation process '
+                      '(--vl option), one has to be \'benign\' and the other \'malicious\', the '
+                      'order should correspond to the folder order, got %s', labels_validate)
 
-    print('Currently selecting the features with chi2')
+    logging.debug('Currently selecting the features with chi2')
     path_info = str('')
     store_features(all_features_dict_path_good, all_features_dict_path_bad, js_dirs_validate,
                    labels_validate, path_info, level, features_choice, analysis_path, n,
@@ -228,9 +221,6 @@ def get_features_all_files_multiproc(samples_dir_list, labels_list, level, featu
     """
         Gets the features of all files from samples_dir_list.
     """
-
-    start = timeit.default_timer()
-    ram = psutil.virtual_memory().used
 
     my_queue = Queue()
     out_queue = Queue()
@@ -268,9 +258,5 @@ def get_features_all_files_multiproc(samples_dir_list, labels_list, level, featu
                 break
         if all_exited & out_queue.empty():
             break
-
-    utility.get_ram_usage(psutil.virtual_memory().used - ram)
-    utility.micro_benchmark('Total elapsed time for features production:',
-                            timeit.default_timer() - start)
 
     return analyses

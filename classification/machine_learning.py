@@ -138,8 +138,8 @@ def get_score(labels, labels_predicted):
     """
 
     if '?' in labels:
-        logging.warning("No ground truth given: unable to evaluate the accuracy of the "
-                        + "classifier's predictions")
+        logging.info("No ground truth given: unable to evaluate the accuracy of the "
+                     "classifier's predictions")
     else:
         try:
             tn, fp, fn, tp = confusion_matrix(labels, labels_predicted,

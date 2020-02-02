@@ -30,7 +30,7 @@ def features2int(features2int_dict, feature):
         i = features2int_dict[feature]
         return i
     except KeyError as err:
-        logging.debug('The key ' + str(feature) + ' is not in the dictionary ' + str(err))
+        logging.debug('The key %s is not in the dictionary, %s', str(feature), str(err))
     return None
 
 
@@ -41,7 +41,7 @@ def int2features(int2features_dict, i):
         feature = int2features_dict[i]
         return feature
     except KeyError as err:
-        logging.debug('The key ' + str(i) + ' is not in the dictionary' + str(err))
+        logging.debug('The key %s is not in the dictionary, %s', str(i), str(err))
     return None
 
 

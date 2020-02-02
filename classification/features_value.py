@@ -31,7 +31,7 @@ import tokenizer_esprima
 
 
 sys.path.insert(0, os.path.join(SRC_PATH, '..', 'pdg_generation'))
-import node
+import node as _node
 
 
 sys.setrecursionlimit(400000)  # Probably need it to unpickle BIG PDGs ;)
@@ -99,7 +99,7 @@ def get_leaf_attr(leaf_node_attribute):
 
     if 'value' in leaf_node_attribute:
         return str(leaf_node_attribute['value'])
-    elif 'name' in leaf_node_attribute:
+    if 'name' in leaf_node_attribute:
         return leaf_node_attribute['name']
     return None
 
@@ -264,7 +264,8 @@ def extract_syntactic_features(pdg_path, level):
         - pdg: str
             Path of the PDG of the file to be analysed.
         - level: str
-            Either 'tokens', 'ast', 'cfg', or 'pdg' depending on the units you want to extract.
+            Either 'tokens', 'ast', 'cfg', 'pdg', or 'pdg-dfg' depending on the units you want
+            to extract.
 
         -------
         Returns:
@@ -273,7 +274,7 @@ def extract_syntactic_features(pdg_path, level):
         - or None if the file either is no JS or malformed.
     """
 
-    logging.info('Analysis of %s', pdg_path)
+    logging.debug('Analysis of %s', pdg_path)
     try:
         if os.stat(pdg_path).st_size < 10000000:  # Avoids handling PDGs over 10MB for perf reasons
             pdg = pickle.load(open(pdg_path, 'rb'))
@@ -300,8 +301,8 @@ def extract_syntactic_features(pdg_path, level):
                 elif level == 'pdg-ast':
                     get_pdg_features_with_ast(pdg, features_list=features_list)
                 else:
-                    logging.error('Expected \'ast\' or \'cfg\' or \'pdg-dfg\' or \'pdg\''
-                                  + 'got %s instead', level)
+                    logging.error('Expected \'ast\' or \'cfg\' or \'pdg-dfg\' or \'pdg\' '
+                                  'got %s instead', level)
                 return features_list, os.stat(pdg_path).st_size
         return None, os.stat(pdg_path).st_size
     except:
@@ -320,7 +321,8 @@ def extract_features(file_repr, level):
             File representation: path of the PDG of the file to be analysed (cases ast, cfg and pdg)
             or path of the file (case tokens).
         - level: str
-            Either 'tokens', 'ast', 'cfg', or 'pdg' depending on the units you want to extract.
+            Either 'tokens', 'ast', 'cfg', 'pdg', or 'pdg-dfg' depending on the units you want
+            to extract.
 
         -------
         Returns:
@@ -332,17 +334,17 @@ def extract_features(file_repr, level):
 
     pdg_size = None
 
-    if level == 'ast' or level == 'cfg' or level == 'pdg-dfg' or level == 'pdg':
-        dico_features = parser_esprima.ast_units_dico
+    if level in ('ast', 'cfg', 'pdg-dfg', 'pdg'):
+        dico_features = parser_esprima.AST_UNITS_DICO
         # List of syntactic units linked by parents, control or data flow
         features_list, pdg_size = extract_syntactic_features(file_repr, level)
     elif level == 'tokens':
-        dico_features = tokenizer_esprima.tokens_dico
+        dico_features = tokenizer_esprima.TOKENS_DICO
         features_list = get_tokens_features(file_repr)  # List of lexical units
     else:
         features_list = None
         logging.error('Expected \'tokens\' or \'ast\' or \'cfg\' or \'pdg-dfg\' or \'pdg\''
-                      + ', got %s instead', level)
+                      ', got %s instead', level)
     # print(features_list)
 
     if features_list is not None and features_list != []:

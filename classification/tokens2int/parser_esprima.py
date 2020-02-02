@@ -15,13 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-    Configuration file storing the dictionary ast_units_dico.
+    Configuration file storing the dictionary AST_UNITS_DICO.
         Key: Esprima syntactical unit;
         Value: Unique integer.
 """
 
 
-ast_units_dico = {
+AST_UNITS_DICO = {
     'ArrayExpression': 0,
     'ArrayPattern': 1,
     'ArrowFunctionExpression': 2,

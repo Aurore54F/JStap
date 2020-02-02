@@ -92,20 +92,6 @@ def parsing_commands():
     """
         Creation of an ArgumentParser object, holding all the information necessary to parse
         the command line into Python data types.
-
-        -------
-        Returns:
-        - ArgumentParser such as:
-          * js_dirs=arg_obj['d'],
-          * labels_d=arg_obj['l'],
-          * js_files=arg_obj['f'],
-          * labels_f=arg_obj['lf'],
-          * model=arg_obj['m'],
-          * threshold=arg_obj['th'],
-          * level=arg_obj['level']
-          * n=arg_obj['n'][0].
-          A more thorough description can be obtained:
-            >$ python3 <path-of-clustering/classifier.py> -help
     """
 
     parser = argparse.ArgumentParser(description='Given a list of directory or file paths,\
@@ -122,8 +108,8 @@ def parsing_commands():
                         help='labels of the JS files to evaluate the model from')
     parser.add_argument('--m', metavar='MODEL', type=str, nargs=1,
                         help='path of the model used to classify the new JS inputs '
-                             + '(see >$ python3 <path-of-clustering/learner.py> -help) '
-                             + 'to build a model)')
+                             '(see >$ python3 <path-of-clustering/learner.py> -help) '
+                             'to build a model)')
     parser.add_argument('--th', metavar='THRESHOLD', type=float, nargs=1, default=[0.50],
                         help='threshold over which all samples are considered malicious')
     utility.parsing_commands(parser)
@@ -161,11 +147,12 @@ def main_classification(js_dirs=arg_obj['d'], js_files=arg_obj['f'], labels_f=ar
             Stands for the size of the sliding-window which goes through the units contained in the
             files to be analysed.
         - level: str
-            Either 'tokens', 'ast', 'cfg', or 'pdg' depending on the units you want to extract.
+            Either 'tokens', 'ast', 'cfg', 'pdg', or 'pdg-dfg' depending on the units you want
+            to extract.
         - analysis_path: str
             Folder to store the features' analysis results in.
         - features_choice: str
-            Either 'ngrams', 'value' depending on the features you want.
+            Either 'ngrams' or 'value' depending on the features you want.
         Default values are the ones given in the command lines or in the
         ArgumentParser object (function parsingCommands()).
 
@@ -175,21 +162,24 @@ def main_classification(js_dirs=arg_obj['d'], js_files=arg_obj['f'], labels_f=ar
         either benign or malicious
     """
 
-    if utility.check_params(js_dirs, js_files, level, features_choice) == 0:
-        return
+    if js_dirs is None and js_files is None:
+        logging.error('Please, indicate at least a directory (--d option) '
+                      'or a JS file (--f option) to be analyzed')
 
     elif js_dirs is not None and labels_d is not None and len(js_dirs) != len(labels_d):
-        logging.error('Please, indicate as many directory labels as the number %s of directories '
-                      + 'to analyze', str(len(js_dirs)))
+        logging.error('Please, indicate as many directory labels (--l option) as the number %s '
+                      'of directories to analyze', str(len(js_dirs)))
 
     elif js_files is not None and labels_f is not None and len(js_files) != len(labels_f):
-        logging.error('Please, indicate as many file labels as the number %s of files to analyze',
-                      str(len(js_files)))
+        logging.error('Please, indicate as many file labels (--lf option) as the number %s '
+                      'of files to analyze', str(len(js_files)))
 
     elif model is None:
-        logging.error('Please, indicate a model to be used to classify new files.\n'
-                      + '(see >$ python3 <path-of-clustering/learner.py> -help)'
-                      + ' to build a model)')
+        logging.error('Please, indicate a model (--m option) to be used to classify new files.\n'
+                      '(see >$ python3 <path-of-clustering/learner.py> -help) to build a model)')
+
+    elif utility.check_params(level, features_choice) == 0:
+        return
 
     else:
         features2int_dict_path = os.path.join(analysis_path, 'Features', features_choice[0],
@@ -210,10 +200,7 @@ def main_classification(js_dirs=arg_obj['d'], js_files=arg_obj['f'], labels_f=ar
             test_model(names, labels, attributes, model=model[0], threshold=threshold[0])
 
         else:
-            logging.warning('No file found for the analysis.\n'
-                            + '(see >$ python3 <path-of-js/is_js.py> -help)'
-                            + ' to check your files correctness.\n'
-                            + 'Otherwise they may not contain enough n-grams)')
+            logging.warning('No valid JS file found for the analysis')
 
 
 if __name__ == "__main__":  # Executed only if run as a script

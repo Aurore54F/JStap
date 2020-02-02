@@ -21,7 +21,6 @@
 import os
 import logging
 import timeit
-import psutil
 import pickle
 from multiprocessing import Process, Queue
 import queue  # For the exception queue.Empty which is not in the multiprocessing package
@@ -35,6 +34,7 @@ features2int_dict = None
 
 
 class Analysis:
+    """ To store the analysis results. """
 
     def __init__(self, pdg_path, label=None):
         self.pdg_path = pdg_path
@@ -75,7 +75,12 @@ def main_analysis(js_dirs, js_files, labels_files, labels_dirs, level, features_
             Stands for the size of the sliding-window which goes through the units contained
             in the files to be analysed.
         - level: str
-            Either 'tokens', 'ast', 'cfg', or 'pdg' depending on the units you want to extract.
+            Either 'tokens', 'ast', 'cfg', 'pdg', or 'pdg-dfg' depending on the units you want
+            to extract.
+        - features_choice: str
+            Either 'ngrams' or 'value' depending on the features you want.
+        - features2int_dict_path: str
+            Path where the features dictionary is stored.
 
         -------
         Returns:
@@ -88,41 +93,40 @@ def main_analysis(js_dirs, js_files, labels_files, labels_dirs, level, features_
     """
 
     start = timeit.default_timer()
-    ram = psutil.virtual_memory().used
 
     global features2int_dict
     features2int_dict = pickle.load(open(features2int_dict_path, 'rb'))
 
     if js_dirs is None and js_files is None:
-        logging.error('Please, indicate a directory or a JS file to be studied')
+        logging.error('Please, indicate a directory or a JS file to be analyzed')
+        return None
 
+    if js_files is not None:
+        files2do = js_files
+        if labels_files is None:
+            labels_files = ['?' for _, _ in enumerate(js_files)]
+        labels = labels_files
     else:
-        if js_files is not None:
-            files2do = js_files
-            if labels_files is None:
-                labels_files = ['?' for _, _ in enumerate(js_files)]
-            labels = labels_files
-        else:
-            files2do, labels = [], []
-        if js_dirs is not None:
-            i = 0
-            if labels_dirs is None:
-                labels_dirs = ['?' for _, _ in enumerate(js_dirs)]
-            for cdir in js_dirs:
-                for cfile in os.listdir(cdir):
-                    files2do.append(os.path.join(cdir, cfile))
-                    if labels_dirs is not None:
-                        labels.append(labels_dirs[i])
-                i += 1
+        files2do, labels = [], []
+    if js_dirs is not None:
+        i = 0
+        if labels_dirs is None:
+            labels_dirs = ['?' for _, _ in enumerate(js_dirs)]
+        for cdir in js_dirs:
+            for cfile in os.listdir(cdir):
+                files2do.append(os.path.join(cdir, cfile))
+                if labels_dirs is not None:
+                    labels.append(labels_dirs[i])
+            i += 1
 
-        analyses = get_features(files2do, labels, level, features_choice, n)
-        logging.info('Got all features')
-        features_repr = get_features_representation(analyses)
+    analyses = get_features(files2do, labels, level, features_choice, n)
+    logging.debug('Got all features')
+    features_repr = get_features_representation(analyses)
 
-        utility.get_ram_usage(psutil.virtual_memory().used - ram)
-        utility.micro_benchmark('Total elapsed time:', timeit.default_timer() - start)
+    utility.micro_benchmark('Elapsed time for the input analysis (without features selection):',
+                            timeit.default_timer() - start)
 
-        return features_repr
+    return features_repr
 
 
 def worker_get_features_vector(my_queue, out_queue, except_queue):
@@ -154,7 +158,7 @@ def get_features(files2do, labels, level, features_choice, n):
     except_queue = Queue()
     workers = list()
 
-    logging.info('Preparing processes to get all features')
+    logging.debug('Preparing processes to get all features')
 
     for i, _ in enumerate(files2do):
         analysis = Analysis(pdg_path=files2do[i], label=labels[i])
@@ -212,7 +216,7 @@ def worker_features_representation(my_queue, out_queue):
                 logging.error(concat_features)
             tab_res2.append(analysis.label)
 
-    logging.info('Merged features in subprocess')
+    logging.debug('Merged features in subprocess')
 
     out_queue.put([tab_res0, tab_res2, concat_features])
 
@@ -229,7 +233,7 @@ def get_features_representation(analyses):
     tab_res = [[], [], []]
     concat_features = None
 
-    logging.info('Preparing processes to merge all features efficiently')
+    logging.debug('Preparing processes to merge all features efficiently')
 
     for i, _ in enumerate(analyses):
         analysis = analyses[i]
@@ -249,9 +253,9 @@ def get_features_representation(analyses):
                 tab_res[2].extend(tab_res2)
                 try:
                     concat_features = sparse.vstack((concat_features, features), format='csr')
-                except ValueError as e:
+                except ValueError:
                     logging.error('Problem to merge %s with %s', concat_features, features)
-            logging.info('Merged features in main process')
+            logging.debug('Merged features in main process')
         except queue.Empty:
             pass
         all_exited = True
@@ -271,6 +275,6 @@ def get_features_representation(analyses):
             or tab_res[1].shape[0] != len(tab_res[2]):
         logging.error('Got %s files to analyze, %s features and %s labels; do not match',
                       str(len(tab_res[0])), str(tab_res[1].shape[0]), str(len(tab_res[2])))
-    logging.info('Finished to merge features, will move to ML stuff :)')
+    logging.debug('Finished to merge features, will move to ML stuff :)')
 
     return tab_res
