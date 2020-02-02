@@ -1,0 +1,18 @@
+2020-02-02: Version 1.1
+
+	* More verbose logging.error messages;
+	* Fixed logging messages not displayed;
+	* Fixed overwriting of valid JS files not ending in .js;
+	* Added a demo, including examples, samples and scripts (issue #1);
+	* Added a one-minute timeout to produce PDGs before aborting;
+	* Fixed a segfault problem to pickle.dump some PDGs.
+
+
+2019-09-25: Version 1.0
+
+    Initial release: JStap, a modular static malicious JavaScript detection system
+
+	* Component pdg_generation to perform a static analysis of JavaScript files and build an AST (Abstract Syntax Tree) enhanced with control and data flow information;
+	* Component classification to detect malicious JavaScript inputs by leveraging machine learning algorithms on the previous code representations;
+	* Our detector JStap is composed of 10 different modules, including 5 ways of abstracting code and 2 ways of extracting features;
+        * Our detector JStap got the ACSAC 2019 "Artifacts Evaluated – Reusable" badge.
