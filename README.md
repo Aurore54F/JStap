@@ -73,6 +73,30 @@ $ python3 classifier.py --d BENIGN2 MALICIOUS2 --l benign malicious --level LEVE
 Currently, we are using 2 CPUs for the learning and classification processes; this can be changed by modifying the variable NUM\_WORKERS from classification/utility.py.
 
 
+### Debug: Graphical AST/CFG/PDG Representations
+
+To generate the graphical representations of the AST (save\_path\_ast), CFG (save\_path\_cfg), and/or PDG (save\_path\_pdg) of one given JS file INPUT\_FILE, we leverage the graphviz library.
+
+To install graphviz:
+```
+pip3 install graphviz
+On MacOS: install brew and then brew install graphviz
+On Linux: install graphviz
+```
+
+Launch the following python3 commands from the `pdg_generation` folder location and indicate the name under which to store the graph(s):
+```
+>>> from pdgs_generation import *
+>>> pdg = get_data_flow('INPUT_FILE', benchmarks=dict(), save_path_ast='ast', save_path_cfg='cfg', save_path_pdg='pdg')
+```
+
+Beware, graphviz may throw an error when the graphs are becoming too big.  
+To merely display the graphs without storing them, use the value 'None'. Otherwise and per default, the value is False.
+
+
+Note: per default, the corresponding PDG will not be stored. To store it in an existing PDG\_PATH folder, add the parameter `store_pdgs='PDG_PATH'` to the previous command.
+
+
 ## Cite this work
 If you use JStap for academic research, you are highly encouraged to cite the following [paper](https://swag.cispa.saarland/papers/fass2019jstap.pdf):
 ```

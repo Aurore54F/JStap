@@ -26,6 +26,7 @@ from handle_json import *
 from build_cfg import *
 from build_dfg import *
 from var_list import *
+from display_graph import *
 
 
 GIT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -37,7 +38,8 @@ def pickle_dump_process(dfg_nodes, store_pdg):
     pickle.dump(dfg_nodes, open(store_pdg, 'wb'))
 
 
-def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
+def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False,
+                  save_path_ast=False, save_path_cfg=False, save_path_pdg=False):
     """
         Produces the PDG of a given file.
 
@@ -52,6 +54,11 @@ def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
             Or None to pursue without storing it.
         check_var: bool
             Build PDG just to check if our malicious variables are undefined. Default: False.
+        - save_path_ast / cfg / pdg:
+            False --> does neither produce nor store the graphical representation;
+            None --> produces + displays the graphical representation;
+            Valid-path --> Produces + stores the graphical representation under the name Valid-path.
+
 
         -------
         Returns:
@@ -75,11 +82,13 @@ def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
         # ast_nodes = search_dynamic(ast_nodes)  # Tried to handle dynamically generated JS
         benchmarks['AST'] = timeit.default_timer() - start
         start = micro_benchmark('Successfully produced the AST in', timeit.default_timer() - start)
-        # draw_ast(ast_nodes, attributes=True, save_path=save_path_ast)
+        if save_path_ast is not False:
+            draw_ast(ast_nodes, attributes=True, save_path=save_path_ast)
         cfg_nodes = build_cfg(ast_nodes)
         benchmarks['CFG'] = timeit.default_timer() - start
         start = micro_benchmark('Successfully produced the CFG in', timeit.default_timer() - start)
-        # draw_cfg(cfg_nodes, attributes=True, save_path=save_path_cfg)
+        if save_path_cfg is not False:
+            draw_cfg(cfg_nodes, attributes=True, save_path=save_path_cfg)
         unknown_var = []
         try:
             with Timeout(60):  # Tries to produce DF within 60s
@@ -88,7 +97,8 @@ def get_data_flow(input_file, benchmarks, store_pdgs=None, check_var=False):
         except Timeout.Timeout:
             logging.exception('Timed out for %s', input_file)
             return None
-        # draw_pdg(dfg_nodes, attributes=True, save_path=save_path_pdg)
+        if save_path_pdg is not False:
+            draw_pdg(dfg_nodes, attributes=True, save_path=save_path_pdg)
         for unknown in unknown_var:
             logging.warning('The variable ' + unknown.attributes['name'] + ' is not declared')
         if check_var:
